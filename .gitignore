@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.idea/
+.venv/
+venv/
+.DS_Store
+
+# Large model weights (download separately — see DATA.md)
+*.pth
+groundingdino_*.pth
+**/owlvit-base-patch32/
+
+# Large datasets / outputs / archives (NOT on GitHub — see DATA.md)
+*.zip
+*.mp4
+*.avi
+dataset/
+datasets/
+training_data_base*/
+FBD_SV_2024*/
+output/
+output_version*/
+aaafinal_output/
+archive/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.blg
+*.fls
+*.fdb_latexmk

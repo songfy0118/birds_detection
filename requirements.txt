@@ -1,0 +1,20 @@
+# Core (trajectory forecasting: Mini-BirdFormer + baselines, training, metrics, figures)
+torch>=2.0
+numpy
+pandas
+matplotlib
+scipy
+
+# Detection / tracking front-end (YOLOv8 -> tracklets)
+ultralytics
+opencv-python
+Pillow
+
+# UAV awareness module (zero-shot open-vocabulary detection + synthetic injection)
+transformers          # OWL-ViT (owlvit-base-patch32)
+rembg                 # background removal for synthetic UAV compositing
+# groundingdino       # install from source: https://github.com/IDEA-Research/GroundingDINO
+
+# Figure generation (optional)
+graphviz
+# pygame              # only used by some interactive visualization scripts

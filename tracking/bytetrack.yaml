@@ -1,0 +1,31 @@
+# FINAL ByteTrack config (fully compatible with latest ultralytics)
+tracker_type: bytetrack
+
+# Thresholds
+track_thresh: 0.5           # used to initialize tracks
+track_high_thresh: 0.6      # high-confidence threshold
+track_low_thresh: 0.1       # low-confidence threshold (NEW REQUIREMENT)
+new_track_thresh: 0.7
+
+# Matching & Association
+match_thresh: 0.8
+proximity_thresh: 0.5       # NEW
+appearance_thresh: 0.25     # NEW
+
+# Buffers / Timing
+track_buffer: 30
+track_lost_buffer: 30       # NEW
+frame_rate: 30
+max_time_lost: 30           # NEW
+
+# Object constraints
+min_box_area: 10            # NEW
+max_box_dist: 9999          # not always required, but safe
+mot20: False
+
+# Score fusion
+fuse_score: True
+
+# EMA settings
+momentum: 0.8
+ema_alpha: 0.9
