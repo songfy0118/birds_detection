@@ -85,7 +85,7 @@ def main():
         enc_layers=args.layers, dec_layers=args.layers,
         dropout=args.dropout, head=args.head,
         mdn_K=args.mdn_k, student_t_dof_init=args.dof_init,
-        learnable_dof=args.learnable_dof
+        learnable_dof=args.learnable_dof, normalize_xy=False
     ).to(device)
 
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)

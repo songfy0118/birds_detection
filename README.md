@@ -1,138 +1,77 @@
 # Probabilistic Bird Trajectory Forecasting
 
-Code, figures, and manuscript for the paper:
+Research code for **Probabilistic Bird Trajectory Forecasting with Heavy-Tailed Uncertainty Modeling for Low-Altitude Airspace Monitoring**, by Feiyang Song, Zhonghe Liu, Yuyang Zhao, and Jingguo Zhu.
 
-> **Probabilistic Bird Trajectory Forecasting with Heavy-Tailed Uncertainty
-> Modeling for Low-Altitude Airspace Monitoring**
-> Feiyang Song, Zhonghe Liu, Yuyang Zhao, Jingguo Zhu.
+**[Published paper — Sensors 26(4), 1270, 15 February 2026](https://doi.org/10.3390/s26041270)** · [Data format](DATA.md) · [Reproduction guide](REPRODUCE.md) · [Code review](docs/VALIDATION.md)
 
-A vision-based framework for monitoring shared low-altitude airspace. Its core,
-**Mini-BirdFormer**, couples a lightweight Transformer encoder with a
-**Student-t Mixture Density Network (MDN)** head to forecast bird-flock
-trajectories *with calibrated, heavy-tailed uncertainty* — using only ~1.05 M
-parameters (minADE 0.785 m, NLL 1.25 → −2.01 vs. a Gaussian-LSTM baseline,
-616 FPS). A plug-and-play **UAV awareness module** adds zero-shot drone detection
-via an open-vocabulary model (OWL-ViT) and a synthetic-data pipeline (92% recall,
-no false alarms).
+## Overview
 
-> **Note.** This repo holds the code + small derived data + figures + paper. The
-> raw videos, full datasets, and heavy pretrained weights (~30+ GB) are **not** on
-> GitHub — see [`DATA.md`](DATA.md) for what they are and how to obtain them.
+The research investigates bird trajectory prediction with a compact Transformer and a Student-t mixture-density output. Heavy-tailed predictive distributions represent multiple plausible futures and large motion deviations. The repository also preserves detection/tracking, UAV-awareness, baseline and figure-generation experiments.
 
----
+The runnable reference workflow uses the existing Transformer encoder-decoder and Student-t head. It trains on the bundled trajectory export, holds out source groups, saves the best validation checkpoint, and reports measured test metrics. It is a practical way to inspect the modeling code; it does **not** reconstruct the paper's complete experiment.
 
-## Get the code / 获取代码
+## Quick start
+
+Use Python 3.10 or newer, from the repository root. A CPU is sufficient.
 
 ```bash
 git clone https://github.com/songfy0118/birds_detection.git
 cd birds_detection
-pip install -r requirements.txt
+python -m pip install -r requirements-core.txt
+python -m unittest discover -s tests -v
+python run_final_experiment.py --smoke --out output/smoke
 ```
 
-(Or download the ZIP from the green **Code** button on GitHub.)
+The smoke check trains a small model for one epoch on up to 16 trajectories per partition. It writes:
 
----
+- `output/smoke/best.pt`: weights, model settings, split indices and data fingerprint.
+- `output/smoke/metrics.json`: measured NLL, ADE, FDE and minADE, with metric definitions and run scope.
 
-## Repository structure / 仓库结构
-
-```
-birds_detection/
-├── models/              # network definitions
-│   ├── transformer.py       # Mini-BirdFormer lightweight Transformer encoder  ← core
-│   ├── heads/student_t.py   # Student-t mixture-density head (heavy-tailed)     ← core contribution
-│   ├── heads/gaussian.py    # Gaussian MDN head (baseline)
-│   ├── heads/intent_head.py # auxiliary intent head
-│   ├── lstm.py              # Gaussian-LSTM baseline
-│   └── build_variants.py    # assembles encoder + head into model variants
-├── train/               # training loops (train_transformer.py, train_lstm.py, …)
-├── predict/             # inference (predict.py, predict_online.py)
-├── metrics/             # ADE/FDE, NLL/uncertainty, collision rate, HOTA, …
-├── utils/               # data / geometry / visualization helpers
-├── tracking/            # YOLOv8 detection → tracking → tracklet sequences
-│   ├── run_tracker.py       # run the detector+tracker on video
-│   ├── mot_to_sequences.py  # convert MOT tracks → trajectory sequences
-│   └── stabilize.py         # camera-motion stabilization
-├── uav/                 # UAV awareness module (zero-shot detection + synthesis)
-│   ├── presence_owlvit_*.py # OWL-ViT open-vocabulary drone detection
-│   ├── presence_gdino_*.py  # GroundingDINO variant
-│   ├── presence_yolo_*.py   # YOLO comparison
-│   └── synthesize_uav.py / batch_synthesize_uav*.py  # synthetic UAV injection
-├── generator/           # synthetic trajectory / scene generators
-├── bird_forecast/       # export tracklets → HiVT baseline format
-├── hivt_data/           # small pre-split .npz tensors for the HiVT baseline
-│
-├── run_final_experiment.py   # ★ main paper experiment (train + eval + compare)
-├── run_all_baselines.py      # run every baseline end-to-end
-├── main.py                   # end-to-end pipeline entry
-├── eval_noise_final.py       # ★ robustness-to-input-noise study (Fig. 4)
-├── eval_noise.py / eval_noise_direct.py   # earlier noise-eval variants
-├── measure_efficiency.py / measure_speed.py / benchmark_speed.py  # FPS / params (Fig. 5)
-│
-├── figure_scripts/      # scripts that render the paper figures
-│   ├── plot_fig1_teaser.py      # Fig. 1 system overview
-│   ├── plot_fig2_arch.py        # Fig. 2 Mini-BirdFormer architecture
-│   ├── plot_fig3_uav.py         # Fig. 3 UAV detection / synthesis
-│   ├── plot_fig4_robustness.py  # Fig. 4 robustness to noise
-│   ├── plot_fig5_efficiency.py  # Fig. 5 efficiency
-│   └── generate_*.py / create_*.py / picture_introduction.py
-├── figures/             # rendered figure outputs used in the manuscript
-│
-├── baselines/           # third-party baselines compared in the paper
-│   ├── Social-STGCNN-master/
-│   ├── Trajectron-plus-plus-master/
-│   ├── sgan-master/            # Social-GAN
-│   └── stgcnn_baseline/
-│
-├── data/bird_trajs.jsonl     # derived bird tracklets (input to forecasting)
-├── checkpoints/              # lstm_forecast.pt, yolov8n.pt
-│
-├── paper/
-│   ├── Probabilistic_Bird_Trajectory_Forecasting.pdf   # latest compiled paper (v12)
-│   └── latex/                # LaTeX source (MDPI template) + figures
-│
-├── requirements.txt
-├── DATA.md              # where the 30+ GB of data/weights live
-└── .gitignore
-```
-
-> **Heads-up on a couple of empty files.** `models/studentT.py`,
-> `models/dual_transformer.py`, `train/train_studentT.py`, and
-> `train/train_dual_transformer.py` are 0-byte placeholders left over from
-> development. The *actual* Student-t model is `models/heads/student_t.py` plus
-> the definitions inside `run_final_experiment.py`. Kept for a faithful backup.
-
----
-
-## Workflow / 工作流程
-
-1. **Detect + track** birds in video → MOT tracks
-   (`tracking/run_tracker.py`, uses `checkpoints/yolov8n.pt`).
-2. **Build sequences**: MOT tracks → trajectory tracklets
-   (`tracking/mot_to_sequences.py`) → `data/bird_trajs.jsonl`.
-3. **Train forecasting** models (`run_final_experiment.py`, or `train/train_*.py`):
-   Mini-BirdFormer (Student-t) + Gaussian-LSTM / Transformer baselines.
-4. **Evaluate**: `metrics/` (minADE/FDE, NLL, collision), robustness via
-   `eval_noise_final.py`, efficiency via `measure_efficiency.py`.
-5. **UAV awareness** (independent module, not part of forecasting training):
-   `uav/presence_owlvit_*.py` + `uav/synthesize_uav.py`.
-6. **Figures**: scripts in `figure_scripts/` regenerate the paper figures.
-
-Because step 2's output (`bird_trajs.jsonl`) is included, you can run the
-forecasting experiments (steps 3–4 + figures) **without** the raw video or the
-large datasets.
-
----
-
-## Reproducing the headline result / 复现主要结果
+To use all bundled trajectories, then evaluate the saved model again:
 
 ```bash
-python run_final_experiment.py
+python forecast.py --epochs 5 --out output/reference
+python forecast.py --checkpoint output/reference/best.pt --out output/reevaluation
 ```
 
-This trains/loads Mini-BirdFormer and the baselines on `data/bird_trajs.jsonl`
-and reports the metrics quoted in the paper (minADE, FDE, NLL, FPS).
+CUDA is optional: append `--device cuda`. A changed dataset or incompatible checkpoint raises an error rather than falling back to random weights.
 
-## License
+## What is included
 
-See the paper for citation. Third-party code under `baselines/` retains its
-original license.
+| Component | Entry point | Status |
+|---|---|---|
+| Training and held-out evaluation | [forecast.py](forecast.py) | Supported reference workflow |
+| Transformer forecaster | [models/transformer.py](models/transformer.py) | Existing encoder-decoder with future queries |
+| Heavy-tailed mixture head and losses | [models/heads/student_t.py](models/heads/student_t.py) | Likelihood checked against PyTorch distributions |
+| Data parsing and normalization | [utils/data.py](utils/data.py) | Bundled and pixel-coordinate JSONL schemas |
+| Trajectories | [data/bird_trajs.jsonl](data/bird_trajs.jsonl) | 2,197 windows, 44 track IDs, 8 observed / 12 future steps |
+| Measured inference timing | [measure_speed.py](measure_speed.py) | Requires a reference-workflow checkpoint |
+| Historical experiments | `train/`, `predict/`, `tracking/`, `uav/`, `baselines/`, `figure_scripts/` | Research archive; see reproduction guide |
+| Manuscript and figures | `paper/`, `figures/` | Research artifacts |
+
+## Reading the results
+
+ADE/FDE use the mixture-weighted mean prediction. minADE selects the lowest-error component trajectory using the target; it is an oracle metric, not an online prediction rule. NLL evaluates the full mixture distribution per two-dimensional step.
+
+Distances in the reference report use image coordinates normalized to `[-1, 1]`, **not metres**. The bundled data lacks camera calibration and original source-video identifiers. Its track-based partition prevents the same track ID crossing partitions, but cannot establish cross-video independence.
+
+The paper's reported accuracy, calibration and speed belong to its experimental protocol. The bundled 8/12-step export, new reference split and full-mixture training loss do not reproduce that protocol or the 60-step research checkpoints. See [REPRODUCE.md](REPRODUCE.md) for the exact boundary.
+
+## Citation
+
+```bibtex
+@article{song2026probabilistic,
+  title = {Probabilistic Bird Trajectory Forecasting with Heavy-Tailed Uncertainty Modeling for Low-Altitude Airspace Monitoring},
+  author = {Song, Feiyang and Liu, Zhonghe and Zhao, Yuyang and Zhu, Jingguo},
+  journal = {Sensors},
+  year = {2026},
+  volume = {26},
+  number = {4},
+  pages = {1270},
+  doi = {10.3390/s26041270}
+}
+```
+
+## Licenses
+
+Third-party code and weights retain their upstream licenses. The paper's publication license does not automatically license every code or data artifact in this repository; no new blanket license is asserted here.

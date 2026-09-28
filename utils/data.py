@@ -19,7 +19,7 @@ def ensure_dir(p: str | Path):
 
 def _norm_xy(xy: np.ndarray, W: float, H: float) -> np.ndarray:
     # [-1,1] 归一化： (x - W/2)/(W/2) ; (y - H/2)/(H/2)
-    sW, sH = max(1.0, W/2.0), max(1.0, H/2.0)
+    sW, sH = W/2.0, H/2.0
     out = xy.copy()
     out[...,0] = (xy[...,0] - W/2.0) / sW
     out[...,1] = (xy[...,1] - H/2.0) / sH
@@ -36,22 +36,51 @@ class TrajJsonlDataset(Dataset):
         self.return_pixels = return_pixels
         self.items: List[dict] = []
         with open(self.path, "r", encoding="utf-8") as f:
-            for line in f:
-                d = json.loads(line)
-                # 兼容字段命名差异
-                W = d.get("W") or d.get("w") or d.get("W0") or 1920
-                H = d.get("H") or d.get("h") or d.get("H0") or 1080
-                past   = np.array(d["past"],   dtype=np.float32)  # [P,2]
-                future = np.array(d["future"], dtype=np.float32)  # [F,2]
+            for line_number, line in enumerate(f, 1):
+                if not line.strip():
+                    continue
+                try:
+                    d = json.loads(line)
+                    if not isinstance(d, dict):
+                        raise ValueError("each record must be a JSON object")
+                    unit_image = "hist" in d and "fut" in d
+                    if unit_image:
+                        hist = np.asarray(d["hist"], dtype=np.float32)
+                        fut = np.asarray(d["fut"], dtype=np.float32)
+                        if hist.ndim != 2 or fut.ndim != 2 or hist.shape[1] != 5 or fut.shape[1] != 5:
+                            raise ValueError("hist/fut must have rows [frame, x, y, width, height]")
+                        if self.return_pixels:
+                            raise ValueError("hist/fut has unit-image coordinates, not calibrated pixels")
+                        past, future = hist[:, 1:3].copy(), fut[:, 1:3].copy()
+                        W = H = 1
+                    else:
+                        W = d.get("W", d.get("w", d.get("W0")))
+                        H = d.get("H", d.get("h", d.get("H0")))
+                        if W is None or H is None or not np.isfinite([W, H]).all() or min(W, H) <= 0:
+                            raise ValueError("pixel-coordinate records require positive W and H")
+                        past = np.asarray(d["past"], dtype=np.float32)
+                        future = np.asarray(d["future"], dtype=np.float32)
+                    for name, points in (("past", past), ("future", future)):
+                        if points.ndim != 2 or points.shape[1] != 2 or len(points) == 0 or not np.isfinite(points).all():
+                            raise ValueError(f"{name} must be a non-empty finite [length, 2] array")
+                    if self.items and (len(past), len(future)) != (len(self.items[0]["past"]), len(self.items[0]["future"])):
+                        raise ValueError("all records must have the same past/future lengths")
+                    tid = int(d.get("track_id", d.get("tid", -1)))
+                    video = d.get("video", "")
+                    if not isinstance(video, str):
+                        raise ValueError("video must be a string")
+                except (ValueError, TypeError, KeyError) as exc:
+                    raise ValueError(f"{self.path}:{line_number}: {exc}") from exc
                 agent_type = d.get("agent_type","unknown")
-                video = d.get("video","")
-                tid   = int(d.get("track_id",-1))
                 self.items.append({
-                    "past": past, "future": future, "W": int(W), "H": int(H),
-                    "agent_type": agent_type, "video": video, "track_id": tid
+                    "past": past, "future": future, "W": float(W), "H": float(H),
+                    "agent_type": agent_type, "video": video, "track_id": tid,
+                    "unit_image": unit_image,
                 })
 
         # 统计 P/F
+        if not self.items:
+            raise ValueError(f"{self.path}: no trajectory records")
         self.P = self.items[0]["past"].shape[0]
         self.F = self.items[0]["future"].shape[0]
 
@@ -64,8 +93,11 @@ class TrajJsonlDataset(Dataset):
 
         past_wh = _rep_wh(W, H, past.shape[0]).astype(np.float32)
         if self.normalize:
-            past_n   = _norm_xy(past, W, H)
-            future_n = _norm_xy(future, W, H)
+            if it["unit_image"]:
+                past_n, future_n = 2 * past - 1, 2 * future - 1
+            else:
+                past_n = _norm_xy(past, W, H)
+                future_n = _norm_xy(future, W, H)
         else:
             past_n, future_n = past, future
 
@@ -99,7 +131,7 @@ def build_loaders(train_jsonl: str|Path,
     ds_tr = TrajJsonlDataset(train_jsonl, normalize=normalize, return_pixels=return_pixels)
     ds_va = TrajJsonlDataset(val_jsonl,   normalize=normalize, return_pixels=return_pixels)
     dl_tr = DataLoader(ds_tr, batch_size=batch_size, shuffle=True,  num_workers=num_workers,
-                       pin_memory=True, drop_last=True, collate_fn=traj_collate)
+                       pin_memory=True, drop_last=False, collate_fn=traj_collate)
     dl_va = DataLoader(ds_va, batch_size=batch_size, shuffle=False, num_workers=num_workers,
                        pin_memory=True, drop_last=False, collate_fn=traj_collate)
     return ds_tr, ds_va, dl_tr, dl_va
