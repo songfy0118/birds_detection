@@ -46,3 +46,5 @@ The `train/`, `predict/`, `tracking/`, `uav/`, `generator/`, `baselines/` and fi
 The previous `run_final_experiment.py` mixed illustrative inputs, fixed plotting values and fallback random weights. It is retained in Git history; the current file delegates to measured training/evaluation. Four empty model/training placeholders were removed; the real Student-t implementation is `models/heads/student_t.py`. No dual-transformer implementation is claimed.
 
 The older `train/train_transformer.py` now disables its redundant model-side normalization. Use `forecast.py` for the supported end-to-end path.
+
+An older figure generator mixed synthetic trajectories, optional random-weight fallback, fixed chart values and its own speed measurement. It and two output images with a 715 FPS label were removed from the current tree because the published paper reports 616 FPS under its stated experimental setup. The files remain recoverable in Git history; neither speed number is a measurement from the reference runner here.

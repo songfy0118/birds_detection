@@ -44,3 +44,7 @@ Distance units are normalized image coordinates, not metres. These values are fr
 ## Remaining boundaries
 
 Original paper split manifests, full 60-step data/calibration and complete baseline/UAV reproduction are not supplied by the supported quick start. Legacy research scripts are retained as an archive and are not covered by the six reference tests. Cross-machine numerical identity is not guaranteed.
+
+## Follow-up portfolio review
+
+Visual inspection found a draft trajectory image labeled 715 FPS, while the published article reports 616 FPS. Its generator used simulated trajectories and could fall back to random weights. The generator and its two draft output images were removed from the current tree; Git history preserves them. The README now shows a clearly labeled conceptual illustration instead of that draft image. This is a presentation/provenance correction, so the previously completed model tests were not rerun.

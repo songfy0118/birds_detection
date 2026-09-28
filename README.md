@@ -10,6 +10,10 @@ The research investigates bird trajectory prediction with a compact Transformer 
 
 The runnable reference workflow uses the existing Transformer encoder-decoder and Student-t head. It trains on the bundled trajectory export, holds out source groups, saves the best validation checkpoint, and reports measured test metrics. It is a practical way to inspect the modeling code; it does **not** reconstruct the paper's complete experiment.
 
+![Student-t distributions have heavier tails than a Gaussian at the same scale; conceptual illustration from the manuscript](paper/latex/figures/Figure_1.png)
+
+*Conceptual distribution illustration from the manuscript, not a fitted result from the bundled reference data.*
+
 ## Quick start
 
 Use Python 3.10 or newer, from the repository root. A CPU is sufficient.
